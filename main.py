@@ -14,18 +14,31 @@ load_dotenv()
 
 tools = [TavilySearch()]
 llm = ChatOpenAI(model="gpt-4")
-
 react_prompt = hub.pull("hwchase17/react")
-
 output_parser = PydanticOutputParser(pydantic_object=AgentResponse)
+
 react_prompt_with_format_instruction = PromptTemplate(
     template=REACT_PROMPT_WITH_FORMAT_INSSTRUCTION,
-    input_variables=["input", "agent_scratchpad", "tool_names", "tools"]
+    input_variables=["inputt", "agent_scratchpad", "tool_names", "tools"]
 ).partial(format_instructions=output_parser.get_format_instructions())
 
-agent = create_react_agent(llm=llm, tools=tools, prompt=react_prompt)
+agent = create_react_agent(
+    llm=llm, tools=tools, prompt=react_prompt_with_format_instruction)
+
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-chain = agent_executor
+extract_output = RunnableLambda(lambda x: x["output"])
+parse_output = RunnableLambda(lambda x: output_parser.parse(x))
+
+chain = agent_executor | extract_output | parse_output
+
+
+# summary_prompt_template = PromptTemplate.from_template(summary_template)
+
+# #llm = ChatOpenAI(temperature=0, model="gpt-5", )
+# llm = ChatOllama(model="gemma3:270m", temperature=0)
+
+# chain = summary_prompt_template | llm
+# response = chain.invoke(input={"bio": information})
 
 
 def main():
